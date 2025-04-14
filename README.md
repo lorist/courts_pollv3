@@ -47,4 +47,4 @@ This Python application monitors scheduled video encounters (VMRs) and ensures a
 
 Or do a dry run without actually talking to the Infinity API: `python vmr_cleanup.py --dry-run`
 
-6. Docker: 
+6. Docker: `docker compose up --build`
