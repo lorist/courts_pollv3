@@ -1,0 +1,10 @@
+version: '3.8'
+
+services:
+  vmr-cleanup:
+    build: .
+    volumes:
+      - .:/app
+      - .:/certs
+    env_file:
+      - .env
