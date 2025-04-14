@@ -1,0 +1,10 @@
+version: '3.8'
+
+services:
+  vmr-cleanup:
+    build: .
+    volumes:
+      - ./cert:/app/cert:ro  # Mount certs read-only
+      - ./.env:/app/.env:ro  # Optional if you don't bake env vars into image
+    env_file:
+      - .env
