@@ -16,10 +16,6 @@ from apscheduler.triggers.date import DateTrigger
 # Load .env file
 load_dotenv()
 
-# Logging setup
-# logging.basicConfig(level=logging.DEBUG, format='%(asctime)s [%(levelname)s] %(message)s')
-# logger = logging.getLogger("vmr_cleanup")
-
 from logging.handlers import RotatingFileHandler
 
 log_formatter = logging.Formatter('%(asctime)s [%(levelname)s] %(message)s')
@@ -39,12 +35,15 @@ logger.addHandler(console_handler)
 
 # --- Settings ---
 class Settings(BaseSettings):
+    # general settings
     poll_interval: int = 60
+    # Scheduler API settings
     scheduler_api_url: str
     scheduler_oauth_token_url: str
     scheduler_issuer: str
     scheduler_private_key_path: str
 
+    # Management node API settings
     mgr_api_url: str
     mgr_oauth_token_url: str
     mgr_issuer: str
@@ -114,7 +113,7 @@ mgr_token_mgr = TokenManager(
 )
 
 # --- Scheduler API ---
-async def get_encounters_from_scheduler() -> list:
+async def get_disconnect_encounters_from_scheduler() -> list:
     logger.info("\U0001f4e5 Fetching encounters from scheduler...")
     token = await scheduler_token_mgr.get_token()
     headers = {"Authorization": f"Bearer {token}"}
@@ -177,10 +176,10 @@ async def disconnect_conference(conference_id: str, token: str, dry_run: bool = 
         return r.status_code == 200
 
 # --- Scheduler Job Setup ---
-async def schedule_disconnect_jobs(encounters: list, dry_run: bool = False, scheduler=None):
+async def schedule_disconnect_jobs(disconnect_encounters: list, dry_run: bool = False, scheduler=None):
     token = await mgr_token_mgr.get_token()
 
-    for encounter in encounters:
+    for encounter in disconnect_encounters:
         if not encounter.get("end_time") or not encounter.get("start_date") or not encounter.get("vmr"):
             continue
 
@@ -214,20 +213,24 @@ async def schedule_disconnect_jobs(encounters: list, dry_run: bool = False, sche
                 id=job_id,
                 replace_existing=True
             )
+
         else:
             logger.info(f"✅ No active conference for VMR '{vmr_name}' at scheduling time.")
 
 # --- Entry Point ---
 if __name__ == "__main__":
+    # dry-run will find the conferences but not actually disconnect 
     dry_run_flag = "--dry-run" in sys.argv
+    # # dial-out will dial out to participants with sip:<uri> in the participant description 
+    # dial_out_flag = "--dial-out" in sys.argv
 
     async def poll_and_schedule():
         scheduler = AsyncIOScheduler()
         scheduler.start()
 
         while True:
-            encounters = await get_encounters_from_scheduler()
-            await schedule_disconnect_jobs(encounters, dry_run=dry_run_flag, scheduler=scheduler)
+            disconnect_encounters = await get_disconnect_encounters_from_scheduler()
+            await schedule_disconnect_jobs(disconnect_encounters, dry_run=dry_run_flag, scheduler=scheduler)
             await asyncio.sleep(settings.poll_interval)
 
     try:
